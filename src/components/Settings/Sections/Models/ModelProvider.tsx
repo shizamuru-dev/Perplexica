@@ -5,6 +5,7 @@ import { AlertCircle, Plug2, Plus, Pencil, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import AddModel from './AddModelDialog';
+import EditModel from './EditModelDialog';
 import UpdateProvider from './UpdateProviderDialog';
 import DeleteProvider from './DeleteProviderDialog';
 
@@ -147,14 +148,23 @@ const ModelProvider = ({
                     className="flex flex-row items-center space-x-1.5 text-xs lg:text-xs text-black/70 dark:text-white/70 rounded-lg bg-light-secondary dark:bg-dark-secondary px-3 py-1.5 border border-light-200 dark:border-dark-200"
                   >
                     <span>{model.name}</span>
-                    <button
-                      onClick={() => {
-                        handleModelDelete('chat', model.key);
-                      }}
-                      className="hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                      <EditModel
+                        providerId={modelProvider.id}
+                        modelProvider={modelProvider}
+                        type="chat"
+                        model={model}
+                        setProviders={setProviders}
+                      />
+                      <button
+                        onClick={() => {
+                          handleModelDelete('chat', model.key);
+                        }}
+                        className="hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -202,14 +212,23 @@ const ModelProvider = ({
                     className="flex flex-row items-center space-x-1.5 text-xs lg:text-xs text-black/70 dark:text-white/70 rounded-lg bg-light-secondary dark:bg-dark-secondary px-3 py-1.5 border border-light-200 dark:border-dark-200"
                   >
                     <span>{model.name}</span>
-                    <button
-                      onClick={() => {
-                        handleModelDelete('embedding', model.key);
-                      }}
-                      className="hover:text-red-500 dark:hover:text-red-400 transition-colors"
-                    >
-                      <X size={12} />
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                      <EditModel
+                        providerId={modelProvider.id}
+                        modelProvider={modelProvider}
+                        type="embedding"
+                        model={model}
+                        setProviders={setProviders}
+                      />
+                      <button
+                        onClick={() => {
+                          handleModelDelete('embedding', model.key);
+                        }}
+                        className="hover:text-red-500 dark:hover:text-red-400 transition-colors"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

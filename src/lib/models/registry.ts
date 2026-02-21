@@ -216,6 +216,21 @@ class ModelRegistry {
     configManager.removeProviderModel(providerId, type, modelKey);
     return;
   }
+
+  async updateProviderModel(
+    providerId: string,
+    type: 'embedding' | 'chat',
+    oldKey: string,
+    model: { name: string; key: string },
+  ): Promise<any> {
+    const updatedModel = configManager.updateProviderModel(
+      providerId,
+      type,
+      oldKey,
+      model,
+    );
+    return updatedModel;
+  }
 }
 
 export default ModelRegistry;

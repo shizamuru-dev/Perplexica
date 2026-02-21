@@ -364,6 +364,38 @@ class ConfigManager {
     this.saveConfig();
   }
 
+  public updateProviderModel(
+    providerId: string,
+    type: 'embedding' | 'chat',
+    oldKey: string,
+    newModel: { name: string; key: string },
+  ) {
+    const provider = this.currentConfig.modelProviders.find(
+      (p) => p.id === providerId,
+    );
+
+    if (!provider) throw new Error('Invalid provider id');
+
+    const models = type === 'chat' ? provider.chatModels : provider.embeddingModels;
+
+    // Check for duplicate key (excluding the model being updated)
+    const duplicate = models.find(
+      (m) => m.key === newModel.key && m.key !== oldKey,
+    );
+    if (duplicate) {
+      throw new Error(`A model with key "${newModel.key}" already exists in this provider`);
+    }
+
+    // Find and update the model
+    const index = models.findIndex((m) => m.key === oldKey);
+    if (index === -1) throw new Error('Model not found');
+
+    models[index] = { name: newModel.name, key: newModel.key };
+
+    this.saveConfig();
+    return models[index];
+  }
+
   public isSetupComplete() {
     return this.currentConfig.setupComplete;
   }
