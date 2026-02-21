@@ -14,23 +14,69 @@ import {
   Plus,
   Trash,
 } from 'lucide-react';
-import { Fragment, useRef, useState } from 'react';
+import { Fragment, useRef, useState, useEffect } from 'react';
 import { useChat } from '@/lib/hooks/useChat';
 import { AnimatePresence } from 'motion/react';
 import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+import { ConfigModelProvider } from '@/lib/config/types';
 
 const Attach = () => {
-  const { files, setFiles, setFileIds, fileIds } = useChat();
+  const { files, setFiles, setFileIds, fileIds, chatModelProvider } = useChat();
 
   const [loading, setLoading] = useState(false);
+  const [providers, setProviders] = useState<ConfigModelProvider[]>([]);
+  const [supportsVision, setSupportsVision] = useState(false);
   const fileInputRef = useRef<any>();
 
+  useEffect(() => {
+    const fetchProviders = async () => {
+      const res = await fetch('/api/providers');
+      const data = await res.json();
+      setProviders(data.providers);
+    };
+    fetchProviders();
+  }, []);
+
+  useEffect(() => {
+    if (providers.length > 0 && chatModelProvider) {
+      const provider = providers.find(
+        (p) => p.id === chatModelProvider.providerId,
+      );
+      const model = provider?.chatModels.find(
+        (m) => m.key === chatModelProvider.key,
+      );
+      setSupportsVision(model?.supportsVision || false);
+    }
+  }, [providers, chatModelProvider]);
+
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files;
+    if (!selectedFiles) return;
+
+    // Validate file size (15MB limit)
+    for (let i = 0; i < selectedFiles.length; i++) {
+      if (selectedFiles[i].size > 15 * 1024 * 1024) {
+        toast.error(`File "${selectedFiles[i].name}" exceeds 15MB limit`);
+        e.target.value = '';
+        return;
+      }
+
+      // Check if image is being uploaded without vision support
+      if (selectedFiles[i].type.startsWith('image/') && !supportsVision) {
+        toast.error(
+          'Current model does not support images. Please select a vision-capable model.',
+        );
+        e.target.value = '';
+        return;
+      }
+    }
+
     setLoading(true);
     const data = new FormData();
 
-    for (let i = 0; i < e.target.files!.length; i++) {
-      data.append('files', e.target.files![i]);
+    for (let i = 0; i < selectedFiles.length; i++) {
+      data.append('files', selectedFiles[i]);
     }
 
     const embeddingModelProvider = localStorage.getItem(
@@ -94,7 +140,11 @@ const Attach = () => {
                           type="file"
                           onChange={handleChange}
                           ref={fileInputRef}
-                          accept=".pdf,.docx,.txt"
+                          accept={
+                            supportsVision
+                              ? '.pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.gif'
+                              : '.pdf,.docx,.txt'
+                          }
                           multiple
                           hidden
                         />
@@ -157,7 +207,11 @@ const Attach = () => {
         type="file"
         onChange={handleChange}
         ref={fileInputRef}
-        accept=".pdf,.docx,.txt"
+        accept={
+          supportsVision
+            ? '.pdf,.docx,.txt,.png,.jpg,.jpeg,.webp,.gif'
+            : '.pdf,.docx,.txt'
+        }
         multiple
         hidden
       />

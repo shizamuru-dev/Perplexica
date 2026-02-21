@@ -7,11 +7,15 @@ export const PATCH = async (
 ) => {
   try {
     const { id, key } = await params;
+    const decodedKey = decodeURIComponent(key);
     const body: {
       name: string;
       key: string;
       type: 'embedding' | 'chat';
+      supportsVision?: boolean;
     } = await req.json();
+
+    console.log('Updating model:', { providerId: id, oldKey: decodedKey, newModel: body });
 
     if (!body.name || !body.key) {
       return Response.json(
@@ -29,9 +33,11 @@ export const PATCH = async (
     const updatedModel = await registry.updateProviderModel(
       id,
       body.type,
-      key, // old key
-      { name: body.name, key: body.key },
+      decodedKey, // old key
+      { name: body.name, key: body.key, supportsVision: body.supportsVision },
     );
+
+    console.log('Model updated successfully:', updatedModel);
 
     return Response.json(
       {

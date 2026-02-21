@@ -59,11 +59,19 @@ class ModelRegistry {
           };
         }
 
+        const deduplicateModels = (models: any[]) => {
+          const map = new Map<string, any>();
+          for (const model of models) {
+            map.set(model.key, model);
+          }
+          return Array.from(map.values());
+        };
+
         providers.push({
           id: p.id,
           name: p.name,
-          chatModels: m.chat,
-          embeddingModels: m.embedding,
+          chatModels: deduplicateModels(m.chat),
+          embeddingModels: deduplicateModels(m.embedding),
         });
       }),
     );
@@ -221,7 +229,7 @@ class ModelRegistry {
     providerId: string,
     type: 'embedding' | 'chat',
     oldKey: string,
-    model: { name: string; key: string },
+    model: { name: string; key: string; supportsVision?: boolean },
   ): Promise<any> {
     const updatedModel = configManager.updateProviderModel(
       providerId,

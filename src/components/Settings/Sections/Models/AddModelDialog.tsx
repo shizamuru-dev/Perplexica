@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ConfigModelProvider } from '@/lib/config/types';
 import { toast } from 'sonner';
+import { Switch } from '@headlessui/react';
 
 const AddModel = ({
   providerId,
@@ -17,6 +18,7 @@ const AddModel = ({
   const [open, setOpen] = useState(false);
   const [modelName, setModelName] = useState('');
   const [modelKey, setModelKey] = useState('');
+  const [supportsVision, setSupportsVision] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +34,7 @@ const AddModel = ({
           name: modelName,
           key: modelKey,
           type: type,
+          supportsVision: supportsVision,
         }),
       });
 
@@ -42,7 +45,7 @@ const AddModel = ({
       setProviders((prev) =>
         prev.map((provider) => {
           if (provider.id === providerId) {
-            const newModel = { name: modelName, key: modelKey };
+            const newModel = { name: modelName, key: modelKey, supportsVision: supportsVision };
             return {
               ...provider,
               chatModels:
@@ -62,6 +65,7 @@ const AddModel = ({
       toast.success('Model added successfully.');
       setModelName('');
       setModelKey('');
+      setSupportsVision(false);
       setOpen(false);
     } catch (error) {
       console.error('Error adding model:', error);
@@ -134,6 +138,43 @@ const AddModel = ({
                           required
                         />
                       </div>
+                      {type === 'chat' && (
+                        <div className="flex flex-row items-center justify-between py-2 px-2 rounded-lg bg-light-secondary/30 dark:bg-dark-secondary/30">
+                          <div>
+                            <label className="text-xs text-black/70 dark:text-white/70 font-medium">
+                              Supports Vision
+                            </label>
+                            <p className="text-[11px] text-black/50 dark:text-white/50">
+                              Enable image uploads for this model
+                            </p>
+                          </div>
+                          <Switch
+                            checked={supportsVision}
+                            onChange={setSupportsVision}
+                            className="group relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none"
+                          >
+                            <span className="sr-only">Supports Vision</span>
+                            <span
+                              aria-hidden="true"
+                              className="pointer-events-none absolute h-full w-full rounded-md"
+                            />
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none absolute mx-auto h-4 w-9 rounded-full transition-colors duration-200 ease-in-out ${
+                                supportsVision
+                                  ? 'bg-sky-500'
+                                  : 'bg-light-200 dark:bg-dark-200'
+                              }`}
+                            />
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none absolute left-0 inline-block h-5 w-5 transform rounded-full border border-light-200 bg-white shadow ring-0 transition-transform duration-200 ease-in-out dark:border-dark-200 dark:bg-dark-secondary ${
+                                supportsVision ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </Switch>
+                        </div>
+                      )}
                     </div>
                     <div className="border-t border-light-200 dark:border-dark-200 -mx-6 my-4" />
                     <div className="flex justify-end">

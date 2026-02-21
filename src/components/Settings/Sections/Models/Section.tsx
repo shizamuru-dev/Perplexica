@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AddProvider from './AddProviderDialog';
 import {
   ConfigModelProvider,
@@ -16,6 +16,25 @@ const Models = ({
   values: ConfigModelProvider[];
 }) => {
   const [providers, setProviders] = useState<ConfigModelProvider[]>(values);
+
+  // Fetch fresh provider data on mount to ensure UI is in sync with backend
+  useEffect(() => {
+    const fetchFreshProviders = async () => {
+      try {
+        const res = await fetch('/api/providers');
+        const data = await res.json();
+        if (data.providers && Array.isArray(data.providers)) {
+          setProviders(data.providers);
+          console.log('Models section: Fetched fresh provider data:', data.providers);
+        }
+      } catch (err) {
+        console.error('Failed to fetch fresh provider data:', err);
+        // Keep using the initial values if fetch fails
+      }
+    };
+
+    fetchFreshProviders();
+  }, []);
 
   return (
     <div className="flex-1 space-y-6 overflow-y-auto py-6">

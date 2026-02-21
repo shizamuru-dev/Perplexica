@@ -1,9 +1,10 @@
 import { Dialog, DialogPanel } from '@headlessui/react';
 import { Loader2, Pencil } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ConfigModelProvider } from '@/lib/config/types';
 import { toast } from 'sonner';
+import { Switch } from '@headlessui/react';
 
 const EditModel = ({
   providerId,
@@ -11,18 +12,34 @@ const EditModel = ({
   setProviders,
   type,
   model,
+  onRefreshRequired,
 }: {
   providerId: string;
   modelProvider: ConfigModelProvider;
   setProviders: React.Dispatch<React.SetStateAction<ConfigModelProvider[]>>;
   type: 'chat' | 'embedding';
-  model: { name: string; key: string };
+  model: { name: string; key: string; supportsVision?: boolean };
+  onRefreshRequired?: () => Promise<void>;
 }) => {
   const [open, setOpen] = useState(false);
   const [modelName, setModelName] = useState(model.name);
   const [modelKey, setModelKey] = useState(model.key);
+  const [supportsVision, setSupportsVision] = useState(model.supportsVision || false);
   const [keyError, setKeyError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Debug logging
+  useEffect(() => {
+    console.log('EditModel mounted:', {
+      providerId: modelProvider.id,
+      providerName: modelProvider.name,
+      modelKey: model.key,
+      modelName: model.name,
+      availableChatModels: modelProvider.chatModels.map(m => m.key),
+      availableEmbeddingModels: modelProvider.embeddingModels.map(m => m.key),
+      type
+    });
+  }, []);
 
   const handleKeyBlur = () => {
     if (modelKey === model.key) {
@@ -68,8 +85,47 @@ const EditModel = ({
 
     setLoading(true);
     try {
+      // First, fetch fresh provider data to ensure model exists
+      console.log('Fetching fresh provider data before update...');
+      const providersRes = await fetch('/api/providers');
+      const providersData = await providersRes.json();
+      
+      const freshProvider = providersData.providers.find(
+        (p: ConfigModelProvider) => p.id === modelProvider.id,
+      );
+
+      if (!freshProvider) {
+        throw new Error('Provider not found');
+      }
+
+      const freshModels = type === 'chat' ? freshProvider.chatModels : freshProvider.embeddingModels;
+      const modelExists = freshModels.some((m: any) => m.key === model.key);
+
+      if (!modelExists) {
+        toast.error(
+          `Model "${model.key}" not found in provider. The model may have been deleted. Please refresh the page.`,
+        );
+        console.error('Model not found in fresh provider data:', {
+          modelKey: model.key,
+          providerId: modelProvider.id,
+          type,
+          availableKeys: freshModels.map((m: any) => m.key),
+        });
+        
+        // Attempt to refresh provider data
+        if (onRefreshRequired) {
+          await onRefreshRequired();
+        }
+        
+        setLoading(false);
+        setOpen(false);
+        return;
+      }
+
+      console.log('Model found in fresh provider, proceeding with update...');
+
       const res = await fetch(
-        `/api/providers/${providerId}/models/${encodeURIComponent(model.key)}`,
+        `/api/providers/${modelProvider.id}/models/${encodeURIComponent(model.key)}`,
         {
           method: 'PATCH',
           headers: {
@@ -79,6 +135,7 @@ const EditModel = ({
             name: modelName,
             key: modelKey,
             type: type,
+            supportsVision: supportsVision,
           }),
         },
       );
@@ -88,42 +145,63 @@ const EditModel = ({
         try {
           const error = await res.json();
           errorMessage = error.message || errorMessage;
+          console.error('Update failed:', {
+            status: res.status,
+            error,
+            requestData: {
+              providerId: modelProvider.id,
+              oldKey: model.key,
+              newData: { name: modelName, key: modelKey, supportsVision, type }
+            }
+          });
         } catch {
-          // Response is not JSON, use default error message
+          console.error('Update failed with non-JSON response:', res.status);
         }
         throw new Error(errorMessage);
       }
 
+      const result = await res.json();
+      console.log('Model updated successfully:', result);
+
       // Update localStorage if this model is currently selected
       updateDefaultModelReferences(model.key, modelKey);
 
-      // Update UI state
-      setProviders((prev) =>
-        prev.map((provider) => {
-          if (provider.id === providerId) {
-            return {
-              ...provider,
-              chatModels:
-                type === 'chat'
-                  ? provider.chatModels.map((m) =>
-                      m.key === model.key
-                        ? { name: modelName, key: modelKey }
-                        : m,
-                    )
-                  : provider.chatModels,
-              embeddingModels:
-                type === 'embedding'
-                  ? provider.embeddingModels.map((m) =>
-                      m.key === model.key
-                        ? { name: modelName, key: modelKey }
-                        : m,
-                    )
-                  : provider.embeddingModels,
-            };
-          }
-          return provider;
-        }),
-      );
+      // Refresh provider data to ensure UI is in sync
+      if (onRefreshRequired) {
+        await onRefreshRequired();
+      } else {
+        // Fallback: Update UI state if no refresh callback
+        setProviders((prev) =>
+          prev.map((provider) => {
+            if (provider.id === modelProvider.id) {
+              return {
+                ...provider,
+                chatModels:
+                  type === 'chat'
+                    ? provider.chatModels.map((m) => {
+                        // Update the model that matches the original key
+                        if (m.key === model.key) {
+                          return { ...m, name: modelName, key: modelKey, supportsVision: supportsVision };
+                        }
+                        return m;
+                      })
+                    : provider.chatModels,
+                embeddingModels:
+                  type === 'embedding'
+                    ? provider.embeddingModels.map((m) => {
+                        // Update the model that matches the original key
+                        if (m.key === model.key) {
+                          return { ...m, name: modelName, key: modelKey, supportsVision: supportsVision };
+                        }
+                        return m;
+                      })
+                    : provider.embeddingModels,
+              };
+            }
+            return provider;
+          }),
+        );
+      }
 
       toast.success('Model updated successfully.');
       setOpen(false);
@@ -141,6 +219,7 @@ const EditModel = ({
         onClick={() => {
           setModelName(model.name);
           setModelKey(model.key);
+          setSupportsVision(model.supportsVision || false);
           setKeyError('');
           setOpen(true);
         }}
@@ -213,6 +292,44 @@ const EditModel = ({
                           </p>
                         )}
                       </div>
+                      {type === 'chat' && (
+                        <div className="flex flex-row items-center justify-between py-2 px-2 rounded-lg bg-light-secondary/30 dark:bg-dark-secondary/30">
+                          <div>
+                            <label className="text-xs text-black/70 dark:text-white/70 font-medium">
+                              Supports Vision
+                            </label>
+                            <p className="text-[11px] text-black/50 dark:text-white/50">
+                              Enable image uploads for this model
+                            </p>
+                          </div>
+                          <Switch
+                            checked={supportsVision}
+                            onChange={setSupportsVision}
+                            className="group relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer items-center justify-center rounded-full focus:outline-none"
+                            disabled={loading}
+                          >
+                            <span className="sr-only">Supports Vision</span>
+                            <span
+                              aria-hidden="true"
+                              className="pointer-events-none absolute h-full w-full rounded-md"
+                            />
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none absolute mx-auto h-4 w-9 rounded-full transition-colors duration-200 ease-in-out ${
+                                supportsVision
+                                  ? 'bg-sky-500'
+                                  : 'bg-light-200 dark:bg-dark-200'
+                              }`}
+                            />
+                            <span
+                              aria-hidden="true"
+                              className={`pointer-events-none absolute left-0 inline-block h-5 w-5 transform rounded-full border border-light-200 bg-white shadow ring-0 transition-transform duration-200 ease-in-out dark:border-dark-200 dark:bg-dark-secondary ${
+                                supportsVision ? 'translate-x-5' : 'translate-x-0'
+                              }`}
+                            />
+                          </Switch>
+                        </div>
+                      )}
                     </div>
                     <div className="border-t border-light-200 dark:border-dark-200 -mx-6 my-4" />
                     <div className="flex justify-end">

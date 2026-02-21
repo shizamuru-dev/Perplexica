@@ -9,6 +9,7 @@ import db from '@/lib/db';
 import { eq } from 'drizzle-orm';
 import { chats } from '@/lib/db/schema';
 import UploadManager from '@/lib/uploads/manager';
+import fs from 'fs';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -127,13 +128,18 @@ export const POST = async (req: Request) => {
 
     const registry = new ModelRegistry();
 
-    const [llm, embedding] = await Promise.all([
+    const [llm, embedding, activeProviders] = await Promise.all([
       registry.loadChatModel(body.chatModel.providerId, body.chatModel.key),
       registry.loadEmbeddingModel(
         body.embeddingModel.providerId,
         body.embeddingModel.key,
       ),
+      registry.getActiveProviders(),
     ]);
+
+    const provider = activeProviders.find((p) => p.id === body.chatModel.providerId);
+    const model = provider?.chatModels.find((m) => m.key === body.chatModel.key);
+    const supportsVision = model?.supportsVision;
 
     const history: ChatTurnMessage[] = body.history.map((msg) => {
       if (msg[0] === 'human') {
@@ -210,6 +216,29 @@ export const POST = async (req: Request) => {
       }
     });
 
+    const images: string[] = [];
+    const nonImageFiles: string[] = [];
+
+    for (const fileId of body.files) {
+      const file = UploadManager.getFile(fileId);
+      if (file) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext || '')) {
+          if (supportsVision) {
+            try {
+              const base64 = fs.readFileSync(file.filePath, 'base64');
+              const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+              images.push(`data:image/${mimeType};base64,${base64}`);
+            } catch (err) {
+              console.error(`Failed to read image file ${file.filePath}:`, err);
+            }
+          }
+        } else {
+          nonImageFiles.push(fileId);
+        }
+      }
+    }
+
     agent.searchAsync(session, {
       chatHistory: history,
       followUp: message.content,
@@ -220,7 +249,8 @@ export const POST = async (req: Request) => {
         embedding: embedding,
         sources: body.sources as SearchSources[],
         mode: body.optimizationMode,
-        fileIds: body.files,
+        fileIds: nonImageFiles,
+        images: images,
         systemInstructions: body.systemInstructions || 'None',
       },
     });

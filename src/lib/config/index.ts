@@ -132,6 +132,18 @@ class ConfigManager {
     );
   }
 
+  private reloadConfig() {
+    try {
+      this.currentConfig = JSON.parse(
+        fs.readFileSync(this.configPath, 'utf-8'),
+      );
+      console.log('Config reloaded from disk');
+    } catch (err) {
+      console.error('Failed to reload config from disk:', err);
+      // Keep current config if reload fails
+    }
+  }
+
   private initializeConfig() {
     const exists = fs.existsSync(this.configPath);
     if (!exists) {
@@ -321,6 +333,9 @@ class ConfigManager {
     type: 'embedding' | 'chat',
     model: any,
   ) {
+    // Reload config to ensure we have the latest data
+    this.reloadConfig();
+    
     const provider = this.currentConfig.modelProviders.find(
       (p) => p.id === providerId,
     );
@@ -345,6 +360,9 @@ class ConfigManager {
     type: 'embedding' | 'chat',
     modelKey: string,
   ) {
+    // Reload config to ensure we have the latest data
+    this.reloadConfig();
+    
     const provider = this.currentConfig.modelProviders.find(
       (p) => p.id === providerId,
     );
@@ -368,8 +386,11 @@ class ConfigManager {
     providerId: string,
     type: 'embedding' | 'chat',
     oldKey: string,
-    newModel: { name: string; key: string },
+    newModel: { name: string; key: string; supportsVision?: boolean },
   ) {
+    // Reload config to ensure we have the latest data
+    this.reloadConfig();
+    
     const provider = this.currentConfig.modelProviders.find(
       (p) => p.id === providerId,
     );
@@ -378,19 +399,41 @@ class ConfigManager {
 
     const models = type === 'chat' ? provider.chatModels : provider.embeddingModels;
 
-    // Check for duplicate key (excluding the model being updated)
-    const duplicate = models.find(
-      (m) => m.key === newModel.key && m.key !== oldKey,
-    );
-    if (duplicate) {
-      throw new Error(`A model with key "${newModel.key}" already exists in this provider`);
+    console.log('updateProviderModel - models before update:', models.map(m => ({ key: m.key, name: m.name })));
+    console.log('updateProviderModel - looking for oldKey:', oldKey);
+
+    // Find the model to update
+    const index = models.findIndex((m) => m.key === oldKey);
+    if (index === -1) {
+      console.log('updateProviderModel - model not found in config, adding it as a new override:', newModel);
+      models.push({
+        name: newModel.name,
+        key: newModel.key,
+        ...(newModel.supportsVision !== undefined && { supportsVision: newModel.supportsVision }),
+      });
+      this.saveConfig();
+      return models[models.length - 1];
     }
 
-    // Find and update the model
-    const index = models.findIndex((m) => m.key === oldKey);
-    if (index === -1) throw new Error('Model not found');
+    console.log('updateProviderModel - found model at index:', index, models[index]);
 
-    models[index] = { name: newModel.name, key: newModel.key };
+    // Check for duplicate key only if key is being changed
+    if (oldKey !== newModel.key) {
+      const duplicate = models.find((m) => m.key === newModel.key);
+      if (duplicate) {
+        throw new Error(`A model with key "${newModel.key}" already exists in this provider`);
+      }
+    }
+
+    // Preserve existing fields and update with new values
+    models[index] = {
+      ...models[index],
+      name: newModel.name,
+      key: newModel.key,
+      ...(newModel.supportsVision !== undefined && { supportsVision: newModel.supportsVision }),
+    };
+
+    console.log('updateProviderModel - updated model:', models[index]);
 
     this.saveConfig();
     return models[index];

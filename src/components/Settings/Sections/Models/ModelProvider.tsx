@@ -1,7 +1,7 @@
 import { UIConfigField, ConfigModelProvider } from '@/lib/config/types';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { AlertCircle, Plug2, Plus, Pencil, Trash2, X } from 'lucide-react';
+import { AlertCircle, Plug2, Plus, Pencil, Trash2, X, Eye } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import AddModel from './AddModelDialog';
@@ -19,6 +19,25 @@ const ModelProvider = ({
   setProviders: React.Dispatch<React.SetStateAction<ConfigModelProvider[]>>;
 }) => {
   const [open, setOpen] = useState(true);
+
+  const refreshProvider = async () => {
+    try {
+      const res = await fetch('/api/providers');
+      const data = await res.json();
+      const freshProvider = data.providers.find(
+        (p: ConfigModelProvider) => p.id === modelProvider.id,
+      );
+
+      if (freshProvider) {
+        setProviders((prev) =>
+          prev.map((p) => (p.id === modelProvider.id ? freshProvider : p)),
+        );
+        console.log('Provider refreshed:', freshProvider);
+      }
+    } catch (err) {
+      console.error('Failed to refresh provider:', err);
+    }
+  };
 
   const handleModelDelete = async (
     type: 'chat' | 'embedding',
@@ -147,7 +166,17 @@ const ModelProvider = ({
                     key={`${modelProvider.id}-chat-${model.key}-${index}`}
                     className="flex flex-row items-center space-x-1.5 text-xs lg:text-xs text-black/70 dark:text-white/70 rounded-lg bg-light-secondary dark:bg-dark-secondary px-3 py-1.5 border border-light-200 dark:border-dark-200"
                   >
-                    <span>{model.name}</span>
+                    <span className="flex items-center gap-1.5">
+                      {model.name}
+                      {model.supportsVision && (
+                        <div title="Supports Vision">
+                          <Eye
+                            size={11}
+                            className="text-sky-500 dark:text-sky-400"
+                          />
+                        </div>
+                      )}
+                    </span>
                     <div className="flex items-center gap-0.5">
                       <EditModel
                         providerId={modelProvider.id}
@@ -155,6 +184,7 @@ const ModelProvider = ({
                         type="chat"
                         model={model}
                         setProviders={setProviders}
+                        onRefreshRequired={refreshProvider}
                       />
                       <button
                         onClick={() => {
@@ -219,6 +249,7 @@ const ModelProvider = ({
                         type="embedding"
                         model={model}
                         setProviders={setProviders}
+                        onRefreshRequired={refreshProvider}
                       />
                       <button
                         onClick={() => {

@@ -7,7 +7,16 @@ import { PDFParse } from 'pdf-parse';
 import { CanvasFactory } from 'pdf-parse/worker';
 import officeParser from 'officeparser'
 
-const supportedMimeTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain'] as const
+const supportedMimeTypes = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/plain',
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/webp',
+  'image/gif',
+] as const;
 
 type SupportedMimeType = typeof supportedMimeTypes[number];
 
@@ -169,6 +178,14 @@ class UploadManager {
                 fs.writeFileSync(docContentPath, JSON.stringify(docData, null, 2));
 
                 return docContentPath;
+            case 'image/png':
+            case 'image/jpeg':
+            case 'image/jpg':
+            case 'image/webp':
+            case 'image/gif':
+                // Images are stored as-is without text extraction
+                // They will be processed directly when sending to vision models
+                return filePath;
             default:
                 throw new Error(`Unsupported file type: ${fileType}`);
         }

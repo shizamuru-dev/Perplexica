@@ -60,6 +60,14 @@ class OllamaLLM extends BaseLLM<OllamaConfig> {
               },
             })) || [],
         };
+      } else if (msg.role === 'user') {
+        return {
+          role: 'user',
+          content: msg.content,
+          ...(msg.images && msg.images.length > 0 && { 
+            images: msg.images.map(img => img.replace(/^data:image\/[a-z]+;base64,/, '')) 
+          }),
+        };
       }
 
       return msg;

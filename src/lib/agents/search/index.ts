@@ -129,6 +129,7 @@ class SearchAgent {
         {
           role: 'user',
           content: input.followUp,
+          ...(input.config.images && input.config.images.length > 0 && { images: input.config.images }),
         },
       ],
     });

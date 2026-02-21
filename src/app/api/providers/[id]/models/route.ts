@@ -70,7 +70,7 @@ export const DELETE = async (
 
     const registry = new ModelRegistry();
 
-    await registry.removeProviderModel(id, body.type, body.key);
+    await registry.removeProviderModel(id, body.type, decodeURIComponent(body.key));
 
     return Response.json(
       {

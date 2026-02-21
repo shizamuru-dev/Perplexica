@@ -9,6 +9,7 @@ export type SearchSources = 'web' | 'discussions' | 'academic';
 export type SearchAgentConfig = {
   sources: SearchSources[];
   fileIds: string[];
+  images?: string[];
   llm: BaseLLM<any>;
   embedding: BaseEmbedding<any>;
   mode: 'speed' | 'balanced' | 'quality';

@@ -63,6 +63,23 @@ class OpenAILLM extends BaseLLM<OpenAIConfig> {
               })),
             }),
         } as ChatCompletionAssistantMessageParam;
+      } else if (msg.role === 'user') {
+        if (msg.images && msg.images.length > 0) {
+          return {
+            role: 'user',
+            content: [
+              { type: 'text', text: msg.content },
+              ...msg.images.map((img) => ({
+                type: 'image_url',
+                image_url: { url: img },
+              })),
+            ],
+          } as any;
+        }
+        return {
+          role: 'user',
+          content: msg.content,
+        };
       }
 
       return msg;
