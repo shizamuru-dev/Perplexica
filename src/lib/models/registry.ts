@@ -206,12 +206,18 @@ class ModelRegistry {
     };
   }
 
-  /* Using async here because maybe in the future we might want to add some validation?? */
   async addProviderModel(
     providerId: string,
     type: 'embedding' | 'chat',
     model: any,
   ): Promise<any> {
+    const provider = this.activeProviders.find((p) => p.id === providerId);
+    if (provider && model.supportsVision === undefined) {
+      const caps = await provider.provider.resolveModelCapabilities(model.key);
+      if (caps.supportsVision !== undefined) {
+        model = { ...model, ...caps };
+      }
+    }
     const addedModel = configManager.addProviderModel(providerId, type, model);
     return addedModel;
   }

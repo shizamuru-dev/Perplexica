@@ -13,6 +13,13 @@ abstract class BaseModelProvider<CONFIG> {
   abstract getModelList(): Promise<ModelList>;
   abstract loadChatModel(modelName: string): Promise<BaseLLM<any>>;
   abstract loadEmbeddingModel(modelName: string): Promise<BaseEmbedding<any>>;
+
+  // Override in providers that support capability detection
+  async resolveModelCapabilities(
+    _key: string,
+  ): Promise<{ supportsVision?: boolean }> {
+    return {};
+  }
   static getProviderConfigFields(): UIConfigField[] {
     throw new Error('Method not implemented.');
   }

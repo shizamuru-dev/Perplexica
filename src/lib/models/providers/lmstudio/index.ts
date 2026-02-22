@@ -48,9 +48,14 @@ class LMStudioProvider extends BaseModelProvider<LMStudioConfig> {
       const data = await res.json();
 
       const models: Model[] = data.data.map((m: any) => {
+        const caps = m.capabilities;
+        const supportsVision =
+          (Array.isArray(caps) && caps.includes('vision')) ||
+          (caps !== null && typeof caps === 'object' && caps.vision === true);
         return {
           name: m.id,
           key: m.id,
+          ...(supportsVision && { supportsVision: true }),
         };
       });
 
