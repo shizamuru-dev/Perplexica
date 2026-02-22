@@ -11,6 +11,16 @@ interface GeminiConfig {
   apiKey: string;
 }
 
+// Models that do NOT support vision input
+const GEMINI_NO_VISION_PATTERNS = [
+  '2.0',
+  'nano',
+  'robotics',
+  'veo',
+  'lyria',
+  'embed',
+];
+
 const providerConfigFields: UIConfigField[] = [
   {
     type: 'password',
@@ -57,9 +67,14 @@ class GeminiProvider extends BaseModelProvider<GeminiConfig> {
           name: m.displayName,
         });
       } else if (m.supportedGenerationMethods.includes('generateContent')) {
+        const id = (m.name as string).toLowerCase();
+        const supportsVision = !GEMINI_NO_VISION_PATTERNS.some((p) =>
+          id.includes(p),
+        );
         defaultChatModels.push({
           key: m.name,
           name: m.displayName,
+          ...(supportsVision && { supportsVision: true }),
         });
       }
     });

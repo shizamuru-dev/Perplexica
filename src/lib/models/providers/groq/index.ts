@@ -23,6 +23,11 @@ const providerConfigFields: UIConfigField[] = [
   },
 ];
 
+const GROQ_VISION_MODELS = new Set([
+  'meta-llama/llama-4-scout-17b-16e-instruct',
+  'meta-llama/llama-4-maverick-17b-128e-instruct',
+]);
+
 class GroqProvider extends BaseModelProvider<GroqConfig> {
   constructor(id: string, name: string, config: GroqConfig) {
     super(id, name, config);
@@ -45,6 +50,7 @@ class GroqProvider extends BaseModelProvider<GroqConfig> {
       defaultChatModels.push({
         key: m.id,
         name: m.id,
+        ...(GROQ_VISION_MODELS.has(m.id) && { supportsVision: true }),
       });
     });
 

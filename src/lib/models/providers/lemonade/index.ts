@@ -57,9 +57,12 @@ class LemonadeProvider extends BaseModelProvider<LemonadeConfig> {
       const models: Model[] = data.data
         .filter((m: any) => m.recipe === 'llamacpp')
         .map((m: any) => {
+          const supportsVision =
+            Array.isArray(m.labels) && m.labels.includes('vision');
           return {
             name: m.id,
             key: m.id,
+            ...(supportsVision && { supportsVision: true }),
           };
         });
 

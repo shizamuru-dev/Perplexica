@@ -23,6 +23,12 @@ const providerConfigFields: UIConfigField[] = [
   },
 ];
 
+// claude-3-5-haiku does not support vision despite being Claude 3.5
+const ANTHROPIC_NO_VISION = new Set([
+  'claude-3-5-haiku-20241022',
+  'claude-3-5-haiku-latest',
+]);
+
 class AnthropicProvider extends BaseModelProvider<AnthropicConfig> {
   constructor(id: string, name: string, config: AnthropicConfig) {
     super(id, name, config);
@@ -45,9 +51,12 @@ class AnthropicProvider extends BaseModelProvider<AnthropicConfig> {
     const data = (await res.json()).data;
 
     const models: Model[] = data.map((m: any) => {
+      const supportsVision =
+        /^claude-[3-9]/.test(m.id) && !ANTHROPIC_NO_VISION.has(m.id);
       return {
         key: m.id,
         name: m.display_name,
+        ...(supportsVision && { supportsVision: true }),
       };
     });
 
