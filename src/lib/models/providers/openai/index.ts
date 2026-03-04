@@ -7,6 +7,7 @@ import BaseModelProvider from '../../base/provider';
 import BaseLLM from '../../base/llm';
 import OpenAILLM from './openaiLLM';
 import OpenAI from 'openai';
+import { checkVisionCapability } from '../utils';
 
 interface OpenAIConfig {
   apiKey: string;
@@ -166,13 +167,14 @@ class OpenAIProvider extends BaseModelProvider<OpenAIConfig> {
 
       for (const m of res.data as any[]) {
         const caps = m.capabilities;
-        const supportsVision =
-          (Array.isArray(caps) && caps.includes('vision')) ||
-          (caps !== null && typeof caps === 'object' && caps.vision === true);
+        const supportsVision = checkVisionCapability(caps);
         capMap.set(m.id, supportsVision);
       }
-    } catch {
-      // If provider doesn't support /v1/models or is unreachable, return empty map
+    } catch (err) {
+      console.warn(
+        'Failed to fetch model capabilities for OpenAI provider:',
+        err,
+      );
     }
     return capMap;
   }

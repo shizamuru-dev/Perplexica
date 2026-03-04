@@ -216,25 +216,40 @@ export const POST = async (req: Request) => {
       }
     });
 
-    const images: string[] = [];
+    const imageExtensions = ['png', 'jpg', 'jpeg', 'webp', 'gif'];
+    const imageFileIds: string[] = [];
     const nonImageFiles: string[] = [];
 
     for (const fileId of body.files) {
       const file = UploadManager.getFile(fileId);
       if (file) {
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(ext || '')) {
-          if (supportsVision) {
-            try {
-              const base64 = fs.readFileSync(file.filePath, 'base64');
-              const mimeType = ext === 'jpg' ? 'jpeg' : ext;
-              images.push(`data:image/${mimeType};base64,${base64}`);
-            } catch (err) {
-              console.error(`Failed to read image file ${file.filePath}:`, err);
-            }
-          }
+        const ext = file.name.split('.').pop()?.toLowerCase() ?? '';
+        if (imageExtensions.includes(ext)) {
+          imageFileIds.push(fileId);
         } else {
           nonImageFiles.push(fileId);
+        }
+      }
+    }
+
+    if (imageFileIds.length > 0 && !supportsVision) {
+      return Response.json(
+        { message: 'The selected model does not support image inputs' },
+        { status: 400 },
+      );
+    }
+
+    const images: string[] = [];
+    for (const fileId of imageFileIds) {
+      const file = UploadManager.getFile(fileId);
+      if (file) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        try {
+          const base64 = fs.readFileSync(file.filePath, 'base64');
+          const mimeType = ext === 'jpg' ? 'jpeg' : ext;
+          images.push(`data:image/${mimeType};base64,${base64}`);
+        } catch (err) {
+          console.error(`Failed to read image file ${file.filePath}:`, err);
         }
       }
     }
