@@ -13,7 +13,6 @@ interface GeminiConfig {
 
 // Models that do NOT support vision input
 const GEMINI_NO_VISION_PATTERNS = [
-  '2.0',
   'nano',
   'robotics',
   'veo',

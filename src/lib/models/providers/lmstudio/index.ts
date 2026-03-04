@@ -6,6 +6,7 @@ import LMStudioLLM from './lmstudioLLM';
 import BaseLLM from '../../base/llm';
 import BaseEmbedding from '../../base/embedding';
 import LMStudioEmbedding from './lmstudioEmbedding';
+import { checkVisionCapability } from '../utils';
 
 interface LMStudioConfig {
   baseURL: string;
@@ -49,9 +50,7 @@ class LMStudioProvider extends BaseModelProvider<LMStudioConfig> {
 
       const models: Model[] = data.data.map((m: any) => {
         const caps = m.capabilities;
-        const supportsVision =
-          (Array.isArray(caps) && caps.includes('vision')) ||
-          (caps !== null && typeof caps === 'object' && caps.vision === true);
+        const supportsVision = checkVisionCapability(caps);
         return {
           name: m.id,
           key: m.id,
